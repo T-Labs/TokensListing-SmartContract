@@ -77,15 +77,9 @@ contract TokensListing is SafeMath {
   event Withdraw(address token, address user, uint amount, uint balance);
   event ActivateToken(address token, string symbol);
 
-  constructor (address admin_, address feeAccount_) public {
-    admin = admin_;
-    feeAccount = feeAccount_;
-  }
-
   function activateToken(address token) public {
-    require (msg.sender = admin);
     activeTokens[token] = true;
-    ActivateToken(token, Token(token).symbol());
+    emit ActivateToken(token, Token(token).symbol());
   }
 
   function isTokenActive(address token) public returns(bool) {
@@ -95,19 +89,16 @@ contract TokensListing is SafeMath {
   }
 
   function deposit() public payable {
-    uint feeDepositXfer = safeMul(msg.value, feeDeposit[0]) / (1 ether);
-    uint depositAmount = safeSub(msg.value, feeDepositXfer);
-    tokens[0][msg.sender] = safeAdd(tokens[0][msg.sender], depositAmount);
-    tokens[0][feeAccount] = safeAdd(tokens[0][feeAccount], feeDepositXfer);
+    uint depositAmount = msg.value;
+    tokens[0][msg.sender] = tokens[0][msg.sender];
     Deposit(0, msg.sender, msg.value, tokens[0][msg.sender]);
   }
 
   function withdraw(uint amount) public {
     require(tokens[0][msg.sender] >= amount);
-    uint feeWithdrawXfer = safeMul(amount, feeWithdraw[0]) / (1 ether);
-    uint withdrawAmount = safeSub(amount, feeWithdrawXfer);
+    uint withdrawAmount = amount;
+    // TODO
     tokens[0][msg.sender] = safeSub(tokens[0][msg.sender], amount);
-    tokens[0][feeAccount] = safeAdd(tokens[0][feeAccount], feeWithdrawXfer);
     require (msg.sender.call.value(withdrawAmount)());
     Withdraw(0, msg.sender, amount, tokens[0][msg.sender]);
   }
@@ -117,20 +108,16 @@ contract TokensListing is SafeMath {
     require(token!=0);
     require(isTokenActive(token));
     require(Token(token).transferFrom(msg.sender, this, amount));
-    uint feeDepositXfer = safeMul(amount, feeDeposit[token]) / (1 ether);
-    uint depositAmount = safeSub(amount, feeDepositXfer);
-    tokens[token][msg.sender] = safeAdd(tokens[token][msg.sender], depositAmount);
-    tokens[token][feeAccount] = safeAdd(tokens[token][feeAccount], feeDepositXfer);
+    tokens[token][msg.sender] = safeAdd(tokens[token][msg.sender], amount);
     Deposit(token, msg.sender, amount, tokens[token][msg.sender]);
   }
 
   function withdrawToken(address token, uint amount) public {
     require(token!=0);
     require(tokens[token][msg.sender] >= amount);
-    uint feeWithdrawXfer = safeMul(amount, feeWithdraw[token]) / (1 ether);
-    uint withdrawAmount = safeSub(amount, feeWithdrawXfer);
+    uint withdrawAmount = amount;
+    // TODO
     tokens[token][msg.sender] = safeSub(tokens[token][msg.sender], amount);
-    tokens[token][feeAccount] = safeAdd(tokens[token][feeAccount], feeWithdrawXfer);
     require(Token(token).transfer(msg.sender, withdrawAmount));
     Withdraw(token, msg.sender, amount, tokens[token][msg.sender]);
   }
@@ -141,8 +128,6 @@ contract TokensListing is SafeMath {
 
   function order(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce) public {
     require(isTokenActive(tokenGet) || !isTokenActive(tokenGive));
-    require(amountGet >= tokensMinAmountBuy[tokenGet]);
-    require(amountGive >= tokensMinAmountSell[tokenGive]);
     bytes32 hash = sha256(this, tokenGet, amountGet, tokenGive, amountGive, expires, nonce);
     orders[msg.sender][hash] = true;
     Order(tokenGet, amountGet, tokenGive, amountGive, expires, nonce, msg.sender);
@@ -163,11 +148,8 @@ contract TokensListing is SafeMath {
   }
 
   function tradeBalances(address tokenGet, uint amountGet, address tokenGive, uint amountGive, address user, uint amount) private {
-    uint feeMakeXfer = safeMul(amount, feeMake[tokenGet]) / (1 ether);
-    uint feeTakeXfer = safeMul(amount, feeTake[tokenGet]) / (1 ether);
-    tokens[tokenGet][msg.sender] = safeSub(tokens[tokenGet][msg.sender], safeAdd(amount, feeTakeXfer));
-    tokens[tokenGet][user] = safeAdd(tokens[tokenGet][user], safeSub(amount, feeMakeXfer));
-    tokens[tokenGet][feeAccount] = safeAdd(tokens[tokenGet][feeAccount], safeAdd(feeMakeXfer, feeTakeXfer));
+    tokens[tokenGet][msg.sender] = safeSub(tokens[tokenGet][msg.sender], amount);
+    tokens[tokenGet][user] = safeAdd(tokens[tokenGet][user], amount);
     tokens[tokenGive][user] = safeSub(tokens[tokenGive][user], safeMul(amountGive, amount) / amountGet);
     tokens[tokenGive][msg.sender] = safeAdd(tokens[tokenGive][msg.sender], safeMul(amountGive, amount) / amountGet);
   }
