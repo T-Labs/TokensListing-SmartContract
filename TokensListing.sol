@@ -1,4 +1,4 @@
-pragma solidity ^0.4.22;
+pragma solidity 0.5.2;
 
 contract SafeMath {
   function safeMul(uint a, uint b) internal returns (uint) {
@@ -19,41 +19,41 @@ contract SafeMath {
   }
 
   function assert(bool assertion) internal {
-    if (!assertion) throw;
+    require(assertion);
   }
 }
 
 contract Token {
   /// @return total amount of tokens
-  function totalSupply() constant returns (uint256 supply) {}
+  function totalSupply() public returns (uint256 supply) {}
 
   /// @param _owner The address from which the balance will be retrieved
   /// @return The balance
-  function balanceOf(address _owner) constant returns (uint256 balance) {}
+  function balanceOf(address _owner) public returns (uint256 balance) {}
 
   /// @notice send `_value` token to `_to` from `msg.sender`
   /// @param _to The address of the recipient
   /// @param _value The amount of token to be transferred
   /// @return Whether the transfer was successful or not
-  function transfer(address _to, uint256 _value) returns (bool success) {}
+  function transfer(address _to, uint256 _value) public returns (bool success) {}
 
   /// @notice send `_value` token to `_to` from `_from` on the condition it is approved by `_from`
   /// @param _from The address of the sender
   /// @param _to The address of the recipient
   /// @param _value The amount of token to be transferred
   /// @return Whether the transfer was successful or not
-  function transferFrom(address _from, address _to, uint256 _value) returns (bool success) {}
+  function transferFrom(address _from, address _to, uint256 _value) public  returns (bool success) {}
 
   /// @notice `msg.sender` approves `_addr` to spend `_value` tokens
   /// @param _spender The address of the account able to transfer the tokens
   /// @param _value The amount of wei to be approved for transfer
   /// @return Whether the approval was successful or not
-  function approve(address _spender, uint256 _value) returns (bool success) {}
+  function approve(address _spender, uint256 _value) public returns (bool success) {}
 
   /// @param _owner The address of the account owning tokens
   /// @param _spender The address of the account able to transfer the tokens
   /// @return Amount of remaining tokens allowed to spent
-  function allowance(address _owner, address _spender) constant returns (uint256 remaining) {}
+  function allowance(address _owner, address _spender) public returns (uint256 remaining) {}
 
   event Transfer(address indexed _from, address indexed _to, uint256 _value);
   event Approval(address indexed _owner, address indexed _spender, uint256 _value);
@@ -69,8 +69,6 @@ contract TokensListing is SafeMath {
   mapping (address => mapping (bytes32 => bool)) public orders; //mapping of user accounts to mapping of order hashes to booleans (true = submitted by user, equivalent to offchain signature)
   mapping (address => mapping (bytes32 => uint)) public orderFills; //mapping of user accounts to mapping of order hashes to uints (amount of order that has been filled)
   mapping (address => bool) public activeTokens;
-  mapping (address => uint) public tokensMinAmountBuy;
-  mapping (address => uint) public tokensMinAmountSell;
 
   event Order(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, address user);
   event Cancel(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, address user, uint8 v, bytes32 r, bytes32 s);
@@ -78,35 +76,25 @@ contract TokensListing is SafeMath {
   event Deposit(address token, address user, uint amount, uint balance);
   event Withdraw(address token, address user, uint amount, uint balance);
   event ActivateToken(address token, string symbol);
-  event DeactivateToken(address token, string symbol);
 
-  function TokensListing(address admin_, address feeAccount_) {
+  constructor (address admin_, address feeAccount_) public {
     admin = admin_;
     feeAccount = feeAccount_;
   }
 
-  function() {
-    throw;
-  }
-  
-  
-  function activateToken(address token) {
-    if (msg.sender != admin) throw;
+  function activateToken(address token) public {
+    require (msg.sender = admin);
     activeTokens[token] = true;
     ActivateToken(token, Token(token).symbol());
   }
 
-  function isTokenActive(address token) constant returns(bool) {
+  function isTokenActive(address token) public returns(bool) {
     if (token == 0)
       return true; // eth is always active
     return activeTokens[token];
   }
 
-
-  
-
-
-  function deposit() payable {
+  function deposit() public payable {
     uint feeDepositXfer = safeMul(msg.value, feeDeposit[0]) / (1 ether);
     uint depositAmount = safeSub(msg.value, feeDepositXfer);
     tokens[0][msg.sender] = safeAdd(tokens[0][msg.sender], depositAmount);
@@ -114,21 +102,21 @@ contract TokensListing is SafeMath {
     Deposit(0, msg.sender, msg.value, tokens[0][msg.sender]);
   }
 
-  function withdraw(uint amount) {
-    if (tokens[0][msg.sender] < amount) throw;
+  function withdraw(uint amount) public {
+    require(tokens[0][msg.sender] >= amount);
     uint feeWithdrawXfer = safeMul(amount, feeWithdraw[0]) / (1 ether);
     uint withdrawAmount = safeSub(amount, feeWithdrawXfer);
     tokens[0][msg.sender] = safeSub(tokens[0][msg.sender], amount);
     tokens[0][feeAccount] = safeAdd(tokens[0][feeAccount], feeWithdrawXfer);
-    if (!msg.sender.call.value(withdrawAmount)()) throw;
+    require (msg.sender.call.value(withdrawAmount)());
     Withdraw(0, msg.sender, amount, tokens[0][msg.sender]);
   }
 
-  function depositToken(address token, uint amount) {
+  function depositToken(address token, uint amount) public {
     //remember to call Token(address).approve(this, amount) or this contract will not be able to do the transfer on your behalf.
-    if (token==0) throw;
-    if (!isTokenActive(token)) throw;
-    if (!Token(token).transferFrom(msg.sender, this, amount)) throw;
+    require(token!=0);
+    require(isTokenActive(token));
+    require(Token(token).transferFrom(msg.sender, this, amount));
     uint feeDepositXfer = safeMul(amount, feeDeposit[token]) / (1 ether);
     uint depositAmount = safeSub(amount, feeDepositXfer);
     tokens[token][msg.sender] = safeAdd(tokens[token][msg.sender], depositAmount);
@@ -136,39 +124,39 @@ contract TokensListing is SafeMath {
     Deposit(token, msg.sender, amount, tokens[token][msg.sender]);
   }
 
-  function withdrawToken(address token, uint amount) {
-    if (token==0) throw;
-    if (tokens[token][msg.sender] < amount) throw;
+  function withdrawToken(address token, uint amount) public {
+    require(token!=0);
+    require(tokens[token][msg.sender] >= amount);
     uint feeWithdrawXfer = safeMul(amount, feeWithdraw[token]) / (1 ether);
     uint withdrawAmount = safeSub(amount, feeWithdrawXfer);
     tokens[token][msg.sender] = safeSub(tokens[token][msg.sender], amount);
     tokens[token][feeAccount] = safeAdd(tokens[token][feeAccount], feeWithdrawXfer);
-    if (!Token(token).transfer(msg.sender, withdrawAmount)) throw;
+    require(Token(token).transfer(msg.sender, withdrawAmount));
     Withdraw(token, msg.sender, amount, tokens[token][msg.sender]);
   }
 
-  function balanceOf(address token, address user) constant returns (uint) {
+  function balanceOf(address token, address user) public returns (uint) {
     return tokens[token][user];
   }
 
-  function order(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce) {
-    if (!isTokenActive(tokenGet) || !isTokenActive(tokenGive)) throw;
-    if (amountGet < tokensMinAmountBuy[tokenGet]) throw;
-    if (amountGive < tokensMinAmountSell[tokenGive]) throw;
+  function order(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce) public {
+    require(isTokenActive(tokenGet) || !isTokenActive(tokenGive));
+    require(amountGet >= tokensMinAmountBuy[tokenGet]);
+    require(amountGive >= tokensMinAmountSell[tokenGive]);
     bytes32 hash = sha256(this, tokenGet, amountGet, tokenGive, amountGive, expires, nonce);
     orders[msg.sender][hash] = true;
     Order(tokenGet, amountGet, tokenGive, amountGive, expires, nonce, msg.sender);
   }
 
-  function trade(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, address user, uint8 v, bytes32 r, bytes32 s, uint amount) {
-    if (!isTokenActive(tokenGet) || !isTokenActive(tokenGive)) throw;
+  function trade(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, address user, uint8 v, bytes32 r, bytes32 s, uint amount) public {
+    require(isTokenActive(tokenGet) && isTokenActive(tokenGive));
     //amount is in amountGet terms
     bytes32 hash = sha256(this, tokenGet, amountGet, tokenGive, amountGive, expires, nonce);
-    if (!(
+    require((
       (orders[user][hash] || ecrecover(sha3("\x19Ethereum Signed Message:\n32", hash),v,r,s) == user) &&
       block.number <= expires &&
       safeAdd(orderFills[user][hash], amount) <= amountGet
-    )) throw;
+    ));
     tradeBalances(tokenGet, amountGet, tokenGive, amountGive, user, amount);
     orderFills[user][hash] = safeAdd(orderFills[user][hash], amount);
     Trade(tokenGet, amount, tokenGive, amountGive * amount / amountGet, user, msg.sender);
@@ -184,7 +172,7 @@ contract TokensListing is SafeMath {
     tokens[tokenGive][msg.sender] = safeAdd(tokens[tokenGive][msg.sender], safeMul(amountGive, amount) / amountGet);
   }
 
-  function testTrade(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, address user, uint8 v, bytes32 r, bytes32 s, uint amount, address sender) constant returns(bool) {
+  function testTrade(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, address user, uint8 v, bytes32 r, bytes32 s, uint amount, address sender) public returns(bool) {
     if (!isTokenActive(tokenGet) || !isTokenActive(tokenGive)) return false;
     if (!(
       tokens[tokenGet][sender] >= amount &&
@@ -193,7 +181,7 @@ contract TokensListing is SafeMath {
     return true;
   }
 
-  function availableVolume(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, address user, uint8 v, bytes32 r, bytes32 s) constant returns(uint) {
+  function availableVolume(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, address user, uint8 v, bytes32 r, bytes32 s) public returns(uint) {
     bytes32 hash = sha256(this, tokenGet, amountGet, tokenGive, amountGive, expires, nonce);
     if (!(
       (orders[user][hash] || ecrecover(sha3("\x19Ethereum Signed Message:\n32", hash),v,r,s) == user) &&
@@ -205,14 +193,14 @@ contract TokensListing is SafeMath {
     return available2;
   }
 
-  function amountFilled(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, address user, uint8 v, bytes32 r, bytes32 s) constant returns(uint) {
+  function amountFilled(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, address user, uint8 v, bytes32 r, bytes32 s) public returns(uint) {
     bytes32 hash = sha256(this, tokenGet, amountGet, tokenGive, amountGive, expires, nonce);
     return orderFills[user][hash];
   }
 
-  function cancelOrder(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, uint8 v, bytes32 r, bytes32 s) {
+  function cancelOrder(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, uint8 v, bytes32 r, bytes32 s) public {
     bytes32 hash = sha256(this, tokenGet, amountGet, tokenGive, amountGive, expires, nonce);
-    if (!(orders[msg.sender][hash] || ecrecover(sha3("\x19Ethereum Signed Message:\n32", hash),v,r,s) == msg.sender)) throw;
+    require (orders[msg.sender][hash] || ecrecover(sha3("\x19Ethereum Signed Message:\n32", hash),v,r,s) == msg.sender);
     orderFills[msg.sender][hash] = amountGet;
     Cancel(tokenGet, amountGet, tokenGive, amountGive, expires, nonce, msg.sender, v, r, s);
   }
