@@ -75,18 +75,6 @@ contract TokensListing is SafeMath {
   event Trade(address tokenGet, uint amountGet, address tokenGive, uint amountGive, address get, address give);
   event Deposit(address token, address user, uint amount, uint balance);
   event Withdraw(address token, address user, uint amount, uint balance);
-  event ActivateToken(address token, string symbol);
-
-  function activateToken(address token) public {
-    activeTokens[token] = true;
-    emit ActivateToken(token, Token(token).symbol());
-  }
-
-  function isTokenActive(address token) public returns(bool) {
-    if (token == 0)
-      return true; // eth is always active
-    return activeTokens[token];
-  }
 
   function deposit() public payable {
     uint depositAmount = msg.value;
@@ -106,7 +94,6 @@ contract TokensListing is SafeMath {
   function depositToken(address token, uint amount) public {
     //remember to call Token(address).approve(this, amount) or this contract will not be able to do the transfer on your behalf.
     require(token!=0);
-    require(isTokenActive(token));
     require(Token(token).transferFrom(msg.sender, this, amount));
     tokens[token][msg.sender] = safeAdd(tokens[token][msg.sender], amount);
     Deposit(token, msg.sender, amount, tokens[token][msg.sender]);
@@ -127,14 +114,12 @@ contract TokensListing is SafeMath {
   }
 
   function order(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce) public {
-    require(isTokenActive(tokenGet) || !isTokenActive(tokenGive));
     bytes32 hash = sha256(this, tokenGet, amountGet, tokenGive, amountGive, expires, nonce);
     orders[msg.sender][hash] = true;
     Order(tokenGet, amountGet, tokenGive, amountGive, expires, nonce, msg.sender);
   }
 
   function trade(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, address user, uint8 v, bytes32 r, bytes32 s, uint amount) public {
-    require(isTokenActive(tokenGet) && isTokenActive(tokenGive));
     //amount is in amountGet terms
     bytes32 hash = sha256(this, tokenGet, amountGet, tokenGive, amountGive, expires, nonce);
     require((
@@ -155,7 +140,6 @@ contract TokensListing is SafeMath {
   }
 
   function testTrade(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, address user, uint8 v, bytes32 r, bytes32 s, uint amount, address sender) public returns(bool) {
-    if (!isTokenActive(tokenGet) || !isTokenActive(tokenGive)) return false;
     if (!(
       tokens[tokenGet][sender] >= amount &&
       availableVolume(tokenGet, amountGet, tokenGive, amountGive, expires, nonce, user, v, r, s) >= amount
