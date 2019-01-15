@@ -78,35 +78,35 @@ contract TokensListing is SafeMath {
 
   function deposit() public payable {
     uint depositAmount = msg.value;
-    tokens[0][msg.sender] = tokens[0][msg.sender];
-    Deposit(0, msg.sender, msg.value, tokens[0][msg.sender]);
+    tokens[address(0)][msg.sender] = tokens[address(0)][msg.sender];
+    emit Deposit(address(0), msg.sender, msg.value, tokens[address(0)][msg.sender]);
   }
 
   function withdraw(uint amount) public {
-    require(tokens[0][msg.sender] >= amount);
+    require(tokens[address(0)][msg.sender] >= amount);
     uint withdrawAmount = amount;
     // TODO
-    tokens[0][msg.sender] = safeSub(tokens[0][msg.sender], amount);
-    require (msg.sender.call.value(withdrawAmount)());
-    Withdraw(0, msg.sender, amount, tokens[0][msg.sender]);
+    tokens[address(0)][msg.sender] = safeSub(tokens[address(0)][msg.sender], amount);
+    msg.sender.transfer(withdrawAmount);
+    emit Withdraw(address(0), msg.sender, amount, tokens[address(0)][msg.sender]);
   }
 
   function depositToken(address token, uint amount) public {
     //remember to call Token(address).approve(this, amount) or this contract will not be able to do the transfer on your behalf.
-    require(token!=0);
-    require(Token(token).transferFrom(msg.sender, this, amount));
+    require(token!=address(0));
+    require(Token(token).transferFrom(msg.sender, address(this), amount));
     tokens[token][msg.sender] = safeAdd(tokens[token][msg.sender], amount);
-    Deposit(token, msg.sender, amount, tokens[token][msg.sender]);
+    emit Deposit(token, msg.sender, amount, tokens[token][msg.sender]);
   }
 
   function withdrawToken(address token, uint amount) public {
-    require(token!=0);
+    require(token!=address(0));
     require(tokens[token][msg.sender] >= amount);
     uint withdrawAmount = amount;
     // TODO
     tokens[token][msg.sender] = safeSub(tokens[token][msg.sender], amount);
     require(Token(token).transfer(msg.sender, withdrawAmount));
-    Withdraw(token, msg.sender, amount, tokens[token][msg.sender]);
+    emit Withdraw(token, msg.sender, amount, tokens[token][msg.sender]);
   }
 
   function balanceOf(address token, address user) public returns (uint) {
@@ -114,14 +114,14 @@ contract TokensListing is SafeMath {
   }
 
   function order(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce) public {
-    bytes32 hash = sha256(this, tokenGet, amountGet, tokenGive, amountGive, expires, nonce);
+    bytes32 hash = sha256(abi.encodePacked(address(this), tokenGet, amountGet, tokenGive, amountGive, expires, nonce));
     orders[msg.sender][hash] = true;
-    Order(tokenGet, amountGet, tokenGive, amountGive, expires, nonce, msg.sender);
+    emit Order(tokenGet, amountGet, tokenGive, amountGive, expires, nonce, msg.sender);
   }
 
   function trade(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, address user, uint8 v, bytes32 r, bytes32 s, uint amount) public {
     //amount is in amountGet terms
-    bytes32 hash = sha256(this, tokenGet, amountGet, tokenGive, amountGive, expires, nonce);
+    bytes32 hash = sha256(abi.encodePacked(address(this), tokenGet, amountGet, tokenGive, amountGive, expires, nonce));
     require((
       (orders[user][hash] || ecrecover(sha3("\x19Ethereum Signed Message:\n32", hash),v,r,s) == user) &&
       block.number <= expires &&
@@ -129,7 +129,7 @@ contract TokensListing is SafeMath {
     ));
     tradeBalances(tokenGet, amountGet, tokenGive, amountGive, user, amount);
     orderFills[user][hash] = safeAdd(orderFills[user][hash], amount);
-    Trade(tokenGet, amount, tokenGive, amountGive * amount / amountGet, user, msg.sender);
+    emit Trade(tokenGet, amount, tokenGive, amountGive * amount / amountGet, user, msg.sender);
   }
 
   function tradeBalances(address tokenGet, uint amountGet, address tokenGive, uint amountGive, address user, uint amount) private {
@@ -148,7 +148,7 @@ contract TokensListing is SafeMath {
   }
 
   function availableVolume(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, address user, uint8 v, bytes32 r, bytes32 s) public returns(uint) {
-    bytes32 hash = sha256(this, tokenGet, amountGet, tokenGive, amountGive, expires, nonce);
+    bytes32 hash = sha256(abi.encodePacked(address(this), tokenGet, amountGet, tokenGive, amountGive, expires, nonce));
     if (!(
       (orders[user][hash] || ecrecover(sha3("\x19Ethereum Signed Message:\n32", hash),v,r,s) == user) &&
       block.number <= expires
@@ -160,14 +160,14 @@ contract TokensListing is SafeMath {
   }
 
   function amountFilled(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, address user, uint8 v, bytes32 r, bytes32 s) public returns(uint) {
-    bytes32 hash = sha256(this, tokenGet, amountGet, tokenGive, amountGive, expires, nonce);
+    bytes32 hash = sha256(abi.encodePacked(address(this), tokenGet, amountGet, tokenGive, amountGive, expires, nonce));
     return orderFills[user][hash];
   }
 
   function cancelOrder(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, uint8 v, bytes32 r, bytes32 s) public {
-    bytes32 hash = sha256(this, tokenGet, amountGet, tokenGive, amountGive, expires, nonce);
+    bytes32 hash = sha256(abi.encodePacked(address(this), tokenGet, amountGet, tokenGive, amountGive, expires, nonce));
     require (orders[msg.sender][hash] || ecrecover(sha3("\x19Ethereum Signed Message:\n32", hash),v,r,s) == msg.sender);
     orderFills[msg.sender][hash] = amountGet;
-    Cancel(tokenGet, amountGet, tokenGive, amountGive, expires, nonce, msg.sender, v, r, s);
+    emit Cancel(tokenGet, amountGet, tokenGive, amountGive, expires, nonce, msg.sender, v, r, s);
   }
 }
