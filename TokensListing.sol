@@ -1,25 +1,21 @@
 pragma solidity 0.5.2;
 
 contract SafeMath {
-  function safeMul(uint a, uint b) internal returns (uint) {
+  function safeMul(uint a, uint b) internal pure returns (uint) {
     uint c = a * b;
     assert(a == 0 || c / a == b);
     return c;
   }
 
-  function safeSub(uint a, uint b) internal returns (uint) {
+  function safeSub(uint a, uint b) internal pure returns (uint) {
     assert(b <= a);
     return a - b;
   }
 
-  function safeAdd(uint a, uint b) internal returns (uint) {
+  function safeAdd(uint a, uint b) internal pure returns (uint) {
     uint c = a + b;
     assert(c>=a && c>=b);
     return c;
-  }
-
-  function assert(bool assertion) internal {
-    require(assertion);
   }
 }
 
@@ -108,7 +104,7 @@ contract TokensListing is SafeMath {
     emit Withdraw(token, msg.sender, amount, tokens[token][msg.sender]);
   }
 
-  function balanceOf(address token, address user) public returns (uint) {
+  function balanceOf(address token, address user) view public returns (uint) {
     return tokens[token][user];
   }
 
@@ -138,7 +134,7 @@ contract TokensListing is SafeMath {
     tokens[tokenGive][msg.sender] = safeAdd(tokens[tokenGive][msg.sender], safeMul(amountGive, amount) / amountGet);
   }
 
-  function testTrade(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, address user, uint8 v, bytes32 r, bytes32 s, uint amount, address sender) public returns(bool) {
+  function testTrade(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, address user, uint8 v, bytes32 r, bytes32 s, uint amount, address sender) view public returns(bool) {
     if (!(
       tokens[tokenGet][sender] >= amount &&
       availableVolume(tokenGet, amountGet, tokenGive, amountGive, expires, nonce, user, v, r, s) >= amount
@@ -146,7 +142,7 @@ contract TokensListing is SafeMath {
     return true;
   }
 
-  function availableVolume(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, address user, uint8 v, bytes32 r, bytes32 s) public returns(uint) {
+  function availableVolume(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, address user, uint8 v, bytes32 r, bytes32 s) view public returns(uint) {
     bytes32 hash = sha256(abi.encodePacked(address(this), tokenGet, amountGet, tokenGive, amountGive, expires, nonce));
     if (!(
       (orders[user][hash] || ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", hash)),v,r,s) == user) &&
@@ -158,7 +154,7 @@ contract TokensListing is SafeMath {
     return available2;
   }
 
-  function amountFilled(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, address user, uint8 v, bytes32 r, bytes32 s) public returns(uint) {
+  function amountFilled(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, address user) view public returns(uint) {
     bytes32 hash = sha256(abi.encodePacked(address(this), tokenGet, amountGet, tokenGive, amountGive, expires, nonce));
     return orderFills[user][hash];
   }
