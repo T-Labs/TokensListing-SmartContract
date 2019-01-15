@@ -77,7 +77,6 @@ contract TokensListing is SafeMath {
   event Withdraw(address token, address user, uint amount, uint balance);
 
   function deposit() public payable {
-    uint depositAmount = msg.value;
     tokens[address(0)][msg.sender] = tokens[address(0)][msg.sender];
     emit Deposit(address(0), msg.sender, msg.value, tokens[address(0)][msg.sender]);
   }
@@ -123,7 +122,7 @@ contract TokensListing is SafeMath {
     //amount is in amountGet terms
     bytes32 hash = sha256(abi.encodePacked(address(this), tokenGet, amountGet, tokenGive, amountGive, expires, nonce));
     require((
-      (orders[user][hash] || ecrecover(sha3("\x19Ethereum Signed Message:\n32", hash),v,r,s) == user) &&
+      (orders[user][hash] || ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", hash)),v,r,s) == user) &&
       block.number <= expires &&
       safeAdd(orderFills[user][hash], amount) <= amountGet
     ));
@@ -150,7 +149,7 @@ contract TokensListing is SafeMath {
   function availableVolume(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, address user, uint8 v, bytes32 r, bytes32 s) public returns(uint) {
     bytes32 hash = sha256(abi.encodePacked(address(this), tokenGet, amountGet, tokenGive, amountGive, expires, nonce));
     if (!(
-      (orders[user][hash] || ecrecover(sha3("\x19Ethereum Signed Message:\n32", hash),v,r,s) == user) &&
+      (orders[user][hash] || ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", hash)),v,r,s) == user) &&
       block.number <= expires
     )) return 0;
     uint available1 = safeSub(amountGet, orderFills[user][hash]);
@@ -166,7 +165,7 @@ contract TokensListing is SafeMath {
 
   function cancelOrder(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, uint8 v, bytes32 r, bytes32 s) public {
     bytes32 hash = sha256(abi.encodePacked(address(this), tokenGet, amountGet, tokenGive, amountGive, expires, nonce));
-    require (orders[msg.sender][hash] || ecrecover(sha3("\x19Ethereum Signed Message:\n32", hash),v,r,s) == msg.sender);
+    require (orders[msg.sender][hash] || ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", hash)),v,r,s) == msg.sender);
     orderFills[msg.sender][hash] = amountGet;
     emit Cancel(tokenGet, amountGet, tokenGive, amountGive, expires, nonce, msg.sender, v, r, s);
   }
