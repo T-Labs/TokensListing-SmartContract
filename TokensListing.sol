@@ -130,16 +130,18 @@ contract TokensListing {
       block.number <= expires &&
       orderFills[user][hash].add(amount) <= amountGet
     ));
-    tradeBalances(tokenGet, amountGet, tokenGive, amountGive, user, amount);
+    
+    uint amountBackward = amountGive.mul(amount).div(amountGet);
+    tradeBalances(tokenGet, tokenGive, amountBackward, user, amount);
     orderFills[user][hash] = orderFills[user][hash].add(amount);
-    emit Trade(tokenGet, amount, tokenGive, amountGive * amount / amountGet, user, msg.sender);
+    emit Trade(tokenGet, amount, tokenGive, amountBackward, user, msg.sender);
   }
 
-  function tradeBalances(address tokenGet, uint amountGet, address tokenGive, uint amountGive, address user, uint amount) private {
+  function tradeBalances(address tokenGet, address tokenGive, uint amountBackward, address user, uint amount) private {
     tokens[tokenGet][msg.sender] = tokens[tokenGet][msg.sender].sub(amount);
     tokens[tokenGet][user] = tokens[tokenGet][user].add(amount);
-    tokens[tokenGive][user] = tokens[tokenGive][user].sub(amountGive.mul(amount).div(amountGet));
-    tokens[tokenGive][msg.sender] = tokens[tokenGive][msg.sender].add(amountGive.mul(amount).div( amountGet));
+    tokens[tokenGive][user] = tokens[tokenGive][user].sub(amountBackward);
+    tokens[tokenGive][msg.sender] = tokens[tokenGive][msg.sender].add(amountBackward);
   }
 
   function testTrade(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, address user, uint8 v, bytes32 r, bytes32 s, uint amount, address sender) view public returns(bool) {
