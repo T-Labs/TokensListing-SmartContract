@@ -1,65 +1,76 @@
-pragma solidity 0.5.2;
+pragma solidity ^0.5.2;
 
-contract SafeMath {
-  function safeMul(uint a, uint b) internal pure returns (uint) {
+library SafeMath {
+  function mul(uint a, uint b) internal pure returns (uint) {
+    if (a == 0) {
+      return 0;
+    }
     uint c = a * b;
-    assert(a == 0 || c / a == b);
+    require(c / a == b);
     return c;
   }
 
-  function safeSub(uint a, uint b) internal pure returns (uint) {
-    assert(b <= a);
-    return a - b;
+  function div(uint a, uint b) internal pure returns (uint) {
+    require(b > 0);
+    uint c = a / b;
+    return c;
   }
 
-  function safeAdd(uint a, uint b) internal pure returns (uint) {
+  function sub(uint a, uint b) internal pure returns (uint) {
+  require(b <= a);
+    uint c = a - b;
+    return c;
+  }
+
+  function add(uint a, uint b) internal pure returns (uint) {
     uint c = a + b;
-    assert(c>=a && c>=b);
+    require(c >= a);
     return c;
   }
 }
 
 contract Token {
   /// @return total amount of tokens
-  function totalSupply() public returns (uint256 supply) {}
+  function totalSupply() public returns (uint supply) {}
 
   /// @param _owner The address from which the balance will be retrieved
   /// @return The balance
-  function balanceOf(address _owner) public returns (uint256 balance) {}
+  function balanceOf(address _owner) public returns (uint balance) {}
 
   /// @notice send `_value` token to `_to` from `msg.sender`
   /// @param _to The address of the recipient
   /// @param _value The amount of token to be transferred
   /// @return Whether the transfer was successful or not
-  function transfer(address _to, uint256 _value) public returns (bool success) {}
+  function transfer(address _to, uint _value) public returns (bool success) {}
 
   /// @notice send `_value` token to `_to` from `_from` on the condition it is approved by `_from`
   /// @param _from The address of the sender
   /// @param _to The address of the recipient
   /// @param _value The amount of token to be transferred
   /// @return Whether the transfer was successful or not
-  function transferFrom(address _from, address _to, uint256 _value) public  returns (bool success) {}
+  function transferFrom(address _from, address _to, uint _value) public  returns (bool success) {}
 
   /// @notice `msg.sender` approves `_addr` to spend `_value` tokens
   /// @param _spender The address of the account able to transfer the tokens
   /// @param _value The amount of wei to be approved for transfer
   /// @return Whether the approval was successful or not
-  function approve(address _spender, uint256 _value) public returns (bool success) {}
+  function approve(address _spender, uint _value) public returns (bool success) {}
 
   /// @param _owner The address of the account owning tokens
   /// @param _spender The address of the account able to transfer the tokens
   /// @return Amount of remaining tokens allowed to spent
-  function allowance(address _owner, address _spender) public returns (uint256 remaining) {}
+  function allowance(address _owner, address _spender) public returns (uint remaining) {}
 
-  event Transfer(address indexed _from, address indexed _to, uint256 _value);
-  event Approval(address indexed _owner, address indexed _spender, uint256 _value);
+  event Transfer(address indexed _from, address indexed _to, uint _value);
+  event Approval(address indexed _owner, address indexed _spender, uint _value);
 
   uint public decimals;
   string public name;
   string public symbol;
 }
 
-contract TokensListing is SafeMath {
+contract TokensListing {
+  using SafeMath for uint;
 
   mapping (address => mapping (address => uint)) public tokens; //mapping of token addresses to mapping of account balances (token=0 means Ether)
   mapping (address => mapping (bytes32 => bool)) public orders; //mapping of user accounts to mapping of order hashes to booleans (true = submitted by user, equivalent to offchain signature)
@@ -79,7 +90,7 @@ contract TokensListing is SafeMath {
   function withdraw(uint amount) public {
     require(tokens[address(0)][msg.sender] >= amount);
     // TODO
-    tokens[address(0)][msg.sender] = safeSub(tokens[address(0)][msg.sender], amount);
+    tokens[address(0)][msg.sender] = tokens[address(0)][msg.sender].sub(amount);
     msg.sender.transfer(amount);
     emit Withdraw(address(0), msg.sender, amount, tokens[address(0)][msg.sender]);
   }
@@ -88,7 +99,7 @@ contract TokensListing is SafeMath {
     //remember to call Token(address).approve(this, amount) or this contract will not be able to do the transfer on your behalf.
     require(token!=address(0));
     require(Token(token).transferFrom(msg.sender, address(this), amount));
-    tokens[token][msg.sender] = safeAdd(tokens[token][msg.sender], amount);
+    tokens[token][msg.sender] = tokens[token][msg.sender].add(amount);
     emit Deposit(token, msg.sender, amount, tokens[token][msg.sender]);
   }
 
@@ -96,7 +107,7 @@ contract TokensListing is SafeMath {
     require(token!=address(0));
     require(tokens[token][msg.sender] >= amount);
     // TODO
-    tokens[token][msg.sender] = safeSub(tokens[token][msg.sender], amount);
+    tokens[token][msg.sender] = tokens[token][msg.sender].sub(amount);
     require(Token(token).transfer(msg.sender, amount));
     emit Withdraw(token, msg.sender, amount, tokens[token][msg.sender]);
   }
@@ -117,18 +128,18 @@ contract TokensListing is SafeMath {
     require((
       (orders[user][hash] || ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", hash)),v,r,s) == user) &&
       block.number <= expires &&
-      safeAdd(orderFills[user][hash], amount) <= amountGet
+      orderFills[user][hash].add(amount) <= amountGet
     ));
     tradeBalances(tokenGet, amountGet, tokenGive, amountGive, user, amount);
-    orderFills[user][hash] = safeAdd(orderFills[user][hash], amount);
+    orderFills[user][hash] = orderFills[user][hash].add(amount);
     emit Trade(tokenGet, amount, tokenGive, amountGive * amount / amountGet, user, msg.sender);
   }
 
   function tradeBalances(address tokenGet, uint amountGet, address tokenGive, uint amountGive, address user, uint amount) private {
-    tokens[tokenGet][msg.sender] = safeSub(tokens[tokenGet][msg.sender], amount);
-    tokens[tokenGet][user] = safeAdd(tokens[tokenGet][user], amount);
-    tokens[tokenGive][user] = safeSub(tokens[tokenGive][user], safeMul(amountGive, amount) / amountGet);
-    tokens[tokenGive][msg.sender] = safeAdd(tokens[tokenGive][msg.sender], safeMul(amountGive, amount) / amountGet);
+    tokens[tokenGet][msg.sender] = tokens[tokenGet][msg.sender].sub(amount);
+    tokens[tokenGet][user] = tokens[tokenGet][user].add(amount);
+    tokens[tokenGive][user] = tokens[tokenGive][user].sub(amountGive.mul(amount).div(amountGet));
+    tokens[tokenGive][msg.sender] = tokens[tokenGive][msg.sender].add(amountGive.mul(amount).div( amountGet));
   }
 
   function testTrade(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, address user, uint8 v, bytes32 r, bytes32 s, uint amount, address sender) view public returns(bool) {
@@ -145,8 +156,8 @@ contract TokensListing is SafeMath {
       (orders[user][hash] || ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", hash)),v,r,s) == user) &&
       block.number <= expires
     )) return 0;
-    uint available1 = safeSub(amountGet, orderFills[user][hash]);
-    uint available2 = safeMul(tokens[tokenGive][user], amountGet) / amountGive;
+    uint available1 = amountGet.sub(orderFills[user][hash]);
+    uint available2 = tokens[tokenGive][user].mul(amountGet).div(amountGive);
     if (available1<available2) return available1;
     return available2;
   }
