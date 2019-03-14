@@ -30,40 +30,14 @@ library SafeMath {
 }
 
 contract Token {
-  /// @return total amount of tokens
   function totalSupply() public returns (uint supply) {}
-
-  /// @param _owner The address from which the balance will be retrieved
-  /// @return The balance
   function balanceOf(address _owner) public returns (uint balance) {}
-
-  /// @notice send `_value` token to `_to` from `msg.sender`
-  /// @param _to The address of the recipient
-  /// @param _value The amount of token to be transferred
-  /// @return Whether the transfer was successful or not
   function transfer(address _to, uint _value) public returns (bool success) {}
-
-  /// @notice send `_value` token to `_to` from `_from` on the condition it is approved by `_from`
-  /// @param _from The address of the sender
-  /// @param _to The address of the recipient
-  /// @param _value The amount of token to be transferred
-  /// @return Whether the transfer was successful or not
   function transferFrom(address _from, address _to, uint _value) public  returns (bool success) {}
-
-  /// @notice `msg.sender` approves `_addr` to spend `_value` tokens
-  /// @param _spender The address of the account able to transfer the tokens
-  /// @param _value The amount of wei to be approved for transfer
-  /// @return Whether the approval was successful or not
   function approve(address _spender, uint _value) public returns (bool success) {}
-
-  /// @param _owner The address of the account owning tokens
-  /// @param _spender The address of the account able to transfer the tokens
-  /// @return Amount of remaining tokens allowed to spent
   function allowance(address _owner, address _spender) public returns (uint remaining) {}
-
   event Transfer(address indexed _from, address indexed _to, uint _value);
   event Approval(address indexed _owner, address indexed _spender, uint _value);
-
   uint public decimals;
   string public name;
   string public symbol;
@@ -72,9 +46,9 @@ contract Token {
 contract TokensListing {
   using SafeMath for uint;
 
-  mapping (address => mapping (address => uint)) public tokens; //mapping of token addresses to mapping of account balances (token=0 means Ether)
-  mapping (address => mapping (bytes32 => bool)) public orders; //mapping of user accounts to mapping of order hashes to booleans (true = submitted by user, equivalent to offchain signature)
-  mapping (address => mapping (bytes32 => uint)) public orderFills; //mapping of user accounts to mapping of order hashes to uints (amount of order that has been filled)
+  mapping (address => mapping (address => uint)) public tokens; 
+  mapping (address => mapping (bytes32 => bool)) public orders; 
+  mapping (address => mapping (bytes32 => uint)) public orderFills; 
 
   event Order(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, address user);
   event Cancel(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, address user, uint8 v, bytes32 r, bytes32 s);
