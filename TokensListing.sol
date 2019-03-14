@@ -156,11 +156,20 @@ contract TokensListing {
       (orders[user][hash] || ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", hash)),v,r,s) == user) &&
       block.number <= expires
     )) return 0;
-    uint available1 = amountGet.sub(orderFills[user][hash]);
-    uint available2 = tokens[tokenGive][user].mul(amountGet).div(amountGive);
+    uint available1 = available1(user, amountGet, hash);
+    uint available2 = available2(user, tokenGive, amountGet, amountGive);
     if (available1<available2) return available1;
     return available2;
   }
+
+  function available1(address user, uint amountGet, bytes32 hash) view public returns(uint) {
+    return  amountGet.sub(orderFills[user][hash]);
+  }
+
+  function available2(address user, address tokenGive, uint amountGet, uint amountGive) view public returns(uint) {
+    return tokens[tokenGive][user].mul(amountGet).div(amountGive);
+  }
+
 
   function amountFilled(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, address user) view public returns(uint) {
     bytes32 hash = sha256(abi.encodePacked(address(this), tokenGet, amountGet, tokenGive, amountGive, expires, nonce));
