@@ -46,6 +46,16 @@ contract Token {
 contract TokensListing {
   using SafeMath for uint;
 
+  struct  Order{
+        address tokenGet;
+        uint amountGet; 
+        address tokenGive; 
+        uint amountGive; 
+        uint expires; 
+        uint nonce; 
+        address user;
+  }
+
   mapping (address => mapping (address => uint)) public tokens; 
   mapping (address => mapping (bytes32 => bool)) public orders; 
   mapping (address => mapping (bytes32 => uint)) public orderFills; 
@@ -91,37 +101,37 @@ contract TokensListing {
   }
 
   function order(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce) public {
-    bytes32 hash = sha256(abi.encodePacked(address(this), tokenGet, amountGet, tokenGive, amountGive, expires, nonce));
-    orders[msg.sender][hash] = true;
+    bytes32 orderHash = sha256(abi.encodePacked(address(this), tokenGet, amountGet, tokenGive, amountGive, expires, nonce));
+    orders[msg.sender][orderHash] = true;
     emit Order(tokenGet, amountGet, tokenGive, amountGive, expires, nonce, msg.sender);
   }
 
   function cheapTrade(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, address user, uint amount) public {
-    bytes32 hash = sha256(abi.encodePacked(address(this), tokenGet, amountGet, tokenGive, amountGive, expires, nonce));
+    bytes32 orderHash = sha256(abi.encodePacked(address(this), tokenGet, amountGet, tokenGive, amountGive, expires, nonce));
     require(
-      orders[user][hash] &&
+      orders[user][orderHash] &&
       block.number <= expires &&
-      orderFills[user][hash].add(amount) <= amountGet
+      orderFills[user][orderHash].add(amount) <= amountGet
     );
     
-    trade(amountGive, amount, amountGet, tokenGet, tokenGive, user, hash);
+    trade(amountGive, amount, amountGet, tokenGet, tokenGive, user, orderHash);
   }
 
   function fastTrade(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, address user, uint8 v, bytes32 r, bytes32 s, uint amount) public {
-    bytes32 hash = sha256(abi.encodePacked(address(this), tokenGet, amountGet, tokenGive, amountGive, expires, nonce));
+    bytes32 orderHash = sha256(abi.encodePacked(address(this), tokenGet, amountGet, tokenGive, amountGive, expires, nonce));
     require(
-      (orders[user][hash] || ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", hash)),v,r,s) == user) &&
+      (orders[user][orderHash] || ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", orderHash)),v,r,s) == user) &&
       block.number <= expires &&
-      orderFills[user][hash].add(amount) <= amountGet
+      orderFills[user][orderHash].add(amount) <= amountGet
     );
     
-    trade(amountGive, amount, amountGet, tokenGet, tokenGive, user, hash);
+    trade(amountGive, amount, amountGet, tokenGet, tokenGive, user, orderHash);
   }
 
-  function trade(uint amountGive, uint amount, uint amountGet, address tokenGet, address tokenGive, address user, bytes32 hash) private {
+  function trade(uint amountGive, uint amount, uint amountGet, address tokenGet, address tokenGive, address user, bytes32 orderHash) private {
     uint amountBackward = amountGive.mul(amount).div(amountGet);
     tradeBalances(tokenGet, tokenGive, amountBackward, user, amount);
-    orderFills[user][hash] = orderFills[user][hash].add(amount);
+    orderFills[user][orderHash] = orderFills[user][orderHash].add(amount);
     emit Trade(tokenGet, amount, tokenGive, amountBackward, user, msg.sender);
   }
 
@@ -149,31 +159,31 @@ contract TokensListing {
   }
 
   function availableCheapVolume(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, address user) view public returns(uint) {
-    bytes32 hash = sha256(abi.encodePacked(address(this), tokenGet, amountGet, tokenGive, amountGive, expires, nonce));
+    bytes32 orderHash = sha256(abi.encodePacked(address(this), tokenGet, amountGet, tokenGive, amountGive, expires, nonce));
     if (!(
-      orders[user][hash] &&
+      orders[user][orderHash] &&
       block.number <= expires
     )) return 0;
-    uint available1 = available1(user, amountGet, hash);
+    uint available1 = available1(user, amountGet, orderHash);
     uint available2 = available2(user, tokenGive, amountGet, amountGive);
     if (available1<available2) return available1;
     return available2;
   }
   
   function availableFastVolume(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, address user, uint8 v, bytes32 r, bytes32 s) view public returns(uint) {
-    bytes32 hash = sha256(abi.encodePacked(address(this), tokenGet, amountGet, tokenGive, amountGive, expires, nonce));
+    bytes32 orderHash = sha256(abi.encodePacked(address(this), tokenGet, amountGet, tokenGive, amountGive, expires, nonce));
     if (!(
-      (orders[user][hash] || ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", hash)),v,r,s) == user) &&
+      (orders[user][orderHash] || ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", orderHash)),v,r,s) == user) &&
       block.number <= expires
     )) return 0;
-    uint available1 = available1(user, amountGet, hash);
+    uint available1 = available1(user, amountGet, orderHash);
     uint available2 = available2(user, tokenGive, amountGet, amountGive);
     if (available1<available2) return available1;
     return available2;
   }
 
-  function available1(address user, uint amountGet, bytes32 hash) view public returns(uint) {
-    return  amountGet.sub(orderFills[user][hash]);
+  function available1(address user, uint amountGet, bytes32 orderHash) view public returns(uint) {
+    return  amountGet.sub(orderFills[user][orderHash]);
   }
 
   function available2(address user, address tokenGive, uint amountGet, uint amountGive) view public returns(uint) {
@@ -182,14 +192,14 @@ contract TokensListing {
 
 
   function amountFilled(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, address user) view public returns(uint) {
-    bytes32 hash = sha256(abi.encodePacked(address(this), tokenGet, amountGet, tokenGive, amountGive, expires, nonce));
-    return orderFills[user][hash];
+    bytes32 orderHash = sha256(abi.encodePacked(address(this), tokenGet, amountGet, tokenGive, amountGive, expires, nonce));
+    return orderFills[user][orderHash];
   }
 
   function cancelOrder(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, uint8 v, bytes32 r, bytes32 s) public {
-    bytes32 hash = sha256(abi.encodePacked(address(this), tokenGet, amountGet, tokenGive, amountGive, expires, nonce));
-    require (orders[msg.sender][hash] || ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", hash)),v,r,s) == msg.sender);
-    orderFills[msg.sender][hash] = amountGet;
+    bytes32 orderHash = sha256(abi.encodePacked(address(this), tokenGet, amountGet, tokenGive, amountGive, expires, nonce));
+    require (orders[msg.sender][orderHash] || ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", orderHash)),v,r,s) == msg.sender);
+    orderFills[msg.sender][orderHash] = amountGet;
     emit Cancel(tokenGet, amountGet, tokenGive, amountGive, expires, nonce, msg.sender, v, r, s);
   }
 }
