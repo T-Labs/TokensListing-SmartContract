@@ -158,16 +158,13 @@ contract TokensListing {
     return true;
   }
 
-  function availableAheadVolume(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, address user) view public returns(uint) {
+  function availableCheapVolume(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, address user) view public returns(uint) {
     bytes32 orderHash = sha256(abi.encodePacked(address(this), tokenGet, amountGet, tokenGive, amountGive, expires, nonce));
     if (!(
       orders[user][orderHash] &&
       block.number <= expires
     )) return 0;
-    uint available1 = available1(user, amountGet, orderHash);
-    uint available2 = available2(user, tokenGive, amountGet, amountGive);
-    if (available1<available2) return available1;
-    return available2;
+    return available(amountGet,  tokenGive,  amountGive, user, orderHash);
   }
   
   function availableAheadVolume(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, address user, uint8 v, bytes32 r, bytes32 s) view public returns(uint) {
@@ -176,17 +173,21 @@ contract TokensListing {
       (orders[user][orderHash] || ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", orderHash)),v,r,s) == user) &&
       block.number <= expires
     )) return 0;
+    return available(amountGet,  tokenGive,  amountGive, user, orderHash);
+  }
+
+  function available(uint amountGet, address tokenGive, uint amountGive, address user, bytes32 orderHash) private  returns(uint) {
     uint available1 = available1(user, amountGet, orderHash);
     uint available2 = available2(user, tokenGive, amountGet, amountGive);
-    if (available1<available2) return available1;
+    if (available1 < available2) return available1;
     return available2;
   }
 
-  function available1(address user, uint amountGet, bytes32 orderHash) view public returns(uint) {
+  function available1(address user, uint amountGet, bytes32 orderHash) private returns(uint) {
     return  amountGet.sub(orderFills[user][orderHash]);
   }
 
-  function available2(address user, address tokenGive, uint amountGet, uint amountGive) view public returns(uint) {
+  function available2(address user, address tokenGive, uint amountGet, uint amountGive) private returns(uint) {
     return tokens[tokenGive][user].mul(amountGet).div(amountGive);
   }
 
