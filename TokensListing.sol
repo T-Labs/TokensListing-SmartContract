@@ -117,7 +117,7 @@ contract TokensListing {
     trade(amountGive, amount, amountGet, tokenGet, tokenGive, user, orderHash);
   }
 
-  function fastTrade(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, address user, uint8 v, bytes32 r, bytes32 s, uint amount) public {
+  function aheadTrade(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, address user, uint8 v, bytes32 r, bytes32 s, uint amount) public {
     bytes32 orderHash = sha256(abi.encodePacked(address(this), tokenGet, amountGet, tokenGive, amountGive, expires, nonce));
     require(
       (orders[user][orderHash] || ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", orderHash)),v,r,s) == user) &&
@@ -150,15 +150,15 @@ contract TokensListing {
     return true;
   }
   
-  function testFastTrade(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, address user, uint8 v, bytes32 r, bytes32 s, uint amount, address sender) view public returns(bool) {
+  function testAheadTrade(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, address user, uint8 v, bytes32 r, bytes32 s, uint amount, address sender) view public returns(bool) {
     if (!(
       tokens[tokenGet][sender] >= amount &&
-      availableFastVolume(tokenGet, amountGet, tokenGive, amountGive, expires, nonce, user, v, r, s) >= amount
+      availableAheadVolume(tokenGet, amountGet, tokenGive, amountGive, expires, nonce, user, v, r, s) >= amount
     )) return false;
     return true;
   }
 
-  function availableCheapVolume(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, address user) view public returns(uint) {
+  function availableAheadVolume(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, address user) view public returns(uint) {
     bytes32 orderHash = sha256(abi.encodePacked(address(this), tokenGet, amountGet, tokenGive, amountGive, expires, nonce));
     if (!(
       orders[user][orderHash] &&
@@ -170,7 +170,7 @@ contract TokensListing {
     return available2;
   }
   
-  function availableFastVolume(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, address user, uint8 v, bytes32 r, bytes32 s) view public returns(uint) {
+  function availableAheadVolume(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, address user, uint8 v, bytes32 r, bytes32 s) view public returns(uint) {
     bytes32 orderHash = sha256(abi.encodePacked(address(this), tokenGet, amountGet, tokenGive, amountGive, expires, nonce));
     if (!(
       (orders[user][orderHash] || ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", orderHash)),v,r,s) == user) &&
