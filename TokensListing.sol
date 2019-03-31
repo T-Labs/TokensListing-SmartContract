@@ -75,20 +75,20 @@ contract TokensListing {
     require(tokens[address(0)][msg.sender] >= amount);
     // TODO
     tokens[address(0)][msg.sender] = tokens[address(0)][msg.sender].sub(amount);
-    msg.sender.transfer(amount);
+    require (msg.sender.transfer(amount));
     emit Withdraw(address(0), msg.sender, amount, tokens[address(0)][msg.sender]);
   }
 
   function depositToken(address token, uint amount) public {
     //remember to call Token(address).approve(this, amount) or this contract will not be able to do the transfer on your behalf.
-    require(token!=address(0));
+    require(token != address(0));
     require(Token(token).transferFrom(msg.sender, address(this), amount));
     tokens[token][msg.sender] = tokens[token][msg.sender].add(amount);
     emit Deposit(token, msg.sender, amount, tokens[token][msg.sender]);
   }
 
   function withdrawToken(address token, uint amount) public {
-    require(token!=address(0));
+    require(token != address(0));
     require(tokens[token][msg.sender] >= amount);
     // TODO
     tokens[token][msg.sender] = tokens[token][msg.sender].sub(amount);
