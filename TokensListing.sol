@@ -46,7 +46,7 @@ contract Token {
 contract TokensListing {
   using SafeMath for uint;
 
-  struct  Order{
+  struct  OrderStruct{
         address tokenGet;
         uint amountGet; 
         address tokenGive; 
@@ -75,7 +75,7 @@ contract TokensListing {
     require(tokens[address(0)][msg.sender] >= amount);
     // TODO
     tokens[address(0)][msg.sender] = tokens[address(0)][msg.sender].sub(amount);
-    require (msg.sender.transfer(amount));
+    msg.sender.transfer(amount);
     emit Withdraw(address(0), msg.sender, amount, tokens[address(0)][msg.sender]);
   }
 
@@ -176,18 +176,18 @@ contract TokensListing {
     return available(amountGet,  tokenGive,  amountGive, user, orderHash);
   }
 
-  function available(uint amountGet, address tokenGive, uint amountGive, address user, bytes32 orderHash) private  returns(uint) {
+  function available(uint amountGet, address tokenGive, uint amountGive, address user, bytes32 orderHash) view private  returns(uint) {
     uint available1 = available1(user, amountGet, orderHash);
     uint available2 = available2(user, tokenGive, amountGet, amountGive);
     if (available1 < available2) return available1;
     return available2;
   }
 
-  function available1(address user, uint amountGet, bytes32 orderHash) private returns(uint) {
+  function available1(address user, uint amountGet, bytes32 orderHash) view private returns(uint) {
     return  amountGet.sub(orderFills[user][orderHash]);
   }
 
-  function available2(address user, address tokenGive, uint amountGet, uint amountGive) private returns(uint) {
+  function available2(address user, address tokenGive, uint amountGet, uint amountGive) view private returns(uint) {
     return tokens[tokenGive][user].mul(amountGet).div(amountGive);
   }
 
