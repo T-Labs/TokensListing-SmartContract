@@ -101,13 +101,13 @@ contract TokensListing {
   }
 
   function order(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce) public {
-    bytes32 orderHash = sha256(abi.encodePacked(address(this), tokenGet, amountGet, tokenGive, amountGive, expires, nonce));
+    bytes32 orderHash = sha256(abi.encodePacked(tokenGet, amountGet, tokenGive, amountGive, expires, nonce));
     orders[msg.sender][orderHash] = true;
     emit Order(tokenGet, amountGet, tokenGive, amountGive, expires, nonce, msg.sender);
   }
 
   function cheapTrade(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, address user, uint amount) public {
-    bytes32 orderHash = sha256(abi.encodePacked(address(this), tokenGet, amountGet, tokenGive, amountGive, expires, nonce));
+    bytes32 orderHash = sha256(abi.encodePacked(tokenGet, amountGet, tokenGive, amountGive, expires, nonce));
     require(
       orders[user][orderHash] &&
       block.number <= expires &&
@@ -118,7 +118,7 @@ contract TokensListing {
   }
 
   function aheadTrade(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, address user, uint8 v, bytes32 r, bytes32 s, uint amount) public {
-    bytes32 orderHash = sha256(abi.encodePacked(address(this), tokenGet, amountGet, tokenGive, amountGive, expires, nonce));
+    bytes32 orderHash = sha256(abi.encodePacked(tokenGet, amountGet, tokenGive, amountGive, expires, nonce));
     require(
       (orders[user][orderHash] || ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", orderHash)),v,r,s) == user) &&
       block.number <= expires &&
@@ -159,7 +159,7 @@ contract TokensListing {
   }
 
   function availableCheapVolume(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, address user) view public returns(uint) {
-    bytes32 orderHash = sha256(abi.encodePacked(address(this), tokenGet, amountGet, tokenGive, amountGive, expires, nonce));
+    bytes32 orderHash = sha256(abi.encodePacked(tokenGet, amountGet, tokenGive, amountGive, expires, nonce));
     if (!(
       orders[user][orderHash] &&
       block.number <= expires
@@ -168,7 +168,7 @@ contract TokensListing {
   }
   
   function availableAheadVolume(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, address user, uint8 v, bytes32 r, bytes32 s) view public returns(uint) {
-    bytes32 orderHash = sha256(abi.encodePacked(address(this), tokenGet, amountGet, tokenGive, amountGive, expires, nonce));
+    bytes32 orderHash = sha256(abi.encodePacked(tokenGet, amountGet, tokenGive, amountGive, expires, nonce));
     if (!(
       (orders[user][orderHash] || ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", orderHash)),v,r,s) == user) &&
       block.number <= expires
@@ -193,12 +193,12 @@ contract TokensListing {
 
 
   function amountFilled(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, address user) view public returns(uint) {
-    bytes32 orderHash = sha256(abi.encodePacked(address(this), tokenGet, amountGet, tokenGive, amountGive, expires, nonce));
+    bytes32 orderHash = sha256(abi.encodePacked(tokenGet, amountGet, tokenGive, amountGive, expires, nonce));
     return orderFills[user][orderHash];
   }
 
   function cancelOrder(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, uint8 v, bytes32 r, bytes32 s) public {
-    bytes32 orderHash = sha256(abi.encodePacked(address(this), tokenGet, amountGet, tokenGive, amountGive, expires, nonce));
+    bytes32 orderHash = sha256(abi.encodePacked(tokenGet, amountGet, tokenGive, amountGive, expires, nonce));
     require (orders[msg.sender][orderHash] || ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", orderHash)),v,r,s) == msg.sender);
     orderFills[msg.sender][orderHash] = amountGet;
     emit Cancel(tokenGet, amountGet, tokenGive, amountGive, expires, nonce, msg.sender, v, r, s);
